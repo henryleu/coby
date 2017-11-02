@@ -128,3 +128,5 @@ package-lock.json
 
 # Users Environment Variables
 .lock-wscript
+
+dist
