@@ -1,51 +1,38 @@
 'use strict';
 
-var net = require('net');
+const net = require('net');
+const idGenerator = require('./id');
+let logger = require('./logger');
 
-var idGenerator = function(a){
-	return a ? (a ^ Math.random() * 16 >> a / 4).toString(16) : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).
-	replace(/[018]/g, idGenerator);
-};
+const descrCmd = '__D';
+const resultCmd = '__R';
+const errorCmd = '__E';
+const newLineCode = '\n'.charCodeAt(0);
 
-var log = {
-	e: function(){
-		var args = new Array(arguments.length);
-		for(var ai = 0, al = arguments.length; ai < al; ++ai){
-			args[ai] = arguments[ai];
-		}
+function Coby(opts){
+    this.options = opts || {
+        logger
+    }; // defaults
 
-		console.log(args);
-	}
-};
-
-var descrCmd = '__D';
-var resultCmd = '__R';
-var errorCmd = '__E';
-
-var newLineCode = '\n'.charCodeAt(0);
-
-exports = module.exports = LightRPC;
-
-function LightRPC(wrapper, logger){
-	if(!(this instanceof LightRPC)) {
-		return new LightRPC(wrapper, logger);
-	}
-
-	log = logger || log;
-
-	this.wrapper = wrapper;
-	this.description = {};
-	this.callbacks = {};
-
-	for(var p in wrapper){
-		this.description[p] = {};
-	}
-
-	this.descrStr = command(descrCmd, this.description);
+    logger = this.options.logger || logger;
+    this.wrapper = {};
+    this.description = {};
+    this.callbacks = {};
 	return this;
 }
 
-LightRPC.prototype.connect = function(port, host, callback){
+Coby.prototype.use = function(wrapper) {
+    Object.assign(this.wrapper, wrapper);
+
+    for(var p in wrapper){
+        this.description[p] = {};
+    }
+
+    this.descrStr = command(descrCmd, this.description);
+    return this;
+};
+
+Coby.prototype.connect = function(port, host, callback){
 	if(!callback){
 		callback = host;
 		host = 'localhost';
@@ -92,24 +79,24 @@ LightRPC.prototype.connect = function(port, host, callback){
 
 	connection.on('data', getOnDataFn(commandsCallback, lengthObj));
 	connection.on('error', function(err){
-		log.e('CONNECTION_DAMN_ERROR', err);
+		logger.error('CONNECTION_DAMN_ERROR', err);
 	});
 
 	connection.on('timeout', function(){
-		log.e('RPC connection timeout');
+		logger.error('RPC connection timeout');
 	});
 
 	connection.on('end', function(){
-		log.e('RPC connection other side send end event');
+		logger.error('RPC connection other side send end event');
 	});
 };
 
-LightRPC.prototype.listen = function(){
+Coby.prototype.listen = function(){
 	this.getServer();
 	this.server.listen.apply(this.server, arguments);
 };
 
-LightRPC.prototype.getServer = function(){
+Coby.prototype.getServer = function(){
 	var self = this;
 
 	var server = net.createServer(function(c) {
@@ -128,7 +115,7 @@ LightRPC.prototype.getServer = function(){
 					self.wrapper[cmd.command].apply({}, args);
 				}
 				catch(err){
-					log.e(err);
+					logger.error(err);
 
 					var resultCommand = command(errorCmd, {id: cmd.data.id, err: err});
 					c.write(resultCommand);
@@ -145,7 +132,7 @@ LightRPC.prototype.getServer = function(){
 		c.on('data', getOnDataFn(commandsCallback, lengthObj));
 
 		c.on('error', function(exception){
-			log.e(exception);
+			logger.error(exception);
 		});
 	});
 
@@ -153,12 +140,12 @@ LightRPC.prototype.getServer = function(){
 	return server;
 };
 
-LightRPC.prototype.close = function(){
+Coby.prototype.close = function(){
 	this.server.close();
 };
 
-LightRPC.connect = function(){
-	var rpc = new LightRPC();
+Coby.connect = function(){
+	var rpc = new Coby();
 	return rpc.connect.apply(rpc, arguments);
 };
 
@@ -205,7 +192,7 @@ function getRemoteCallFunction(cmdName, callbacks, connection){
 			}
 		}
 
-		var newCmd = command(cmdName, {id: id, args: args});
+		var newCmd = command(cmdName, {id, args});
 		connection.write(newCmd);
 	};
 }
@@ -248,9 +235,9 @@ function getComands(){
 				var parsedCmd = JSON.parse(cmd);
 			}
 			catch(e){
-				log.e('ERROR PARSE');
-				log.e(cmd);
-				log.e(this.length, this.bufferBytes.toString());
+				logger.error('ERROR PARSE');
+				logger.error(cmd);
+				logger.error(this.length, this.bufferBytes.toString());
 				return;
 			}
 
@@ -286,3 +273,5 @@ function clearBuffer(buffer, length){
 
 	return undefined;
 }
+
+module.exports = Coby;
