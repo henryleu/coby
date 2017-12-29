@@ -1,4 +1,6 @@
 const net = require('net');
+const util = require('util');
+const events = require('events');
 const idGenerator = require('./id');
 const DurableConnection = require('./reconnect');
 let logger = require('./logger');
@@ -9,16 +11,15 @@ const errorCmd = '__E';
 const newLineCode = '\n'.charCodeAt(0);
 
 function Coby(opts){
-    this.options = opts || {
-        logger
-    }; // defaults
-
+    this.options = opts || { logger }; // defaults
     logger = this.options.logger || logger;
     this.wrapper = {};
     this.description = {};
     this.callbacks = {};
 	return this;
 }
+
+util.inherits(Coby, events.EventEmitter);
 
 Coby.prototype.use = function(wrapper) {
     Object.assign(this.wrapper, wrapper);
@@ -31,24 +32,25 @@ Coby.prototype.use = function(wrapper) {
     return this;
 };
 
-Coby.prototype.connect = function(port, host, callback){
+Coby.prototype.connect = function(port, host, options, callback){
 	if(!callback){
 		callback = host;
 		host = 'localhost';
 	}
 
-    var connection = net.createConnection(port, host);
-    // var connection = new DurableConnection(port, host);
-    // connection.reconnectMillis = 7000;     // default: 1000
-    // connection.maxReconnectMillis = 60000; // default: Number.MAX_SAFE_INTEGER
-
     var self = this;
+    var connection = new DurableConnection(port, host);
+    connection.reconnectMillis = options.reconnectMillis || 1000; // default: 1000
+    connection.maxReconnectMillis = options.maxReconnectMillis || 5000; // default: Number.MAX_SAFE_INTEGER
 
-	connection.setKeepAlive(true);
-
+    connection.connect();
 	connection.on('connect', function(){
-		connection.write(command(descrCmd));
+        connection.socket.setKeepAlive(true);
+		connection.socket.write(command(descrCmd));
 	});
+    connection.on('reconnect', function(times) {
+        self.emit('reconnect', times);
+    });
 
 	var commandsCallback = function(cmd){
 		if(cmd.command === resultCmd){
@@ -196,7 +198,7 @@ function getRemoteCallFunction(cmdName, callbacks, connection){
 		}
 
 		var newCmd = command(cmdName, {id, args});
-		connection.write(newCmd);
+		connection.socket.write(newCmd);
 	};
 }
 

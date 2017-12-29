@@ -56,6 +56,7 @@ function DurableConnection() {
     this.socket = null;
     this.reconnectMillis = 1000;
     this.maxReconnectMillis = Number.MAX_SAFE_INTEGER;
+    this._reconnectTimes = 0;
     this.log = function log() {
         var args = Array.prototype.slice.call(arguments);
         args.unshift('DurableConnection');
@@ -82,7 +83,7 @@ DurableConnection.prototype._reconnect = function _reconnect() {
     me.socket = null;
     if (!me._reconnectTimeout && !me._closeRequested) {
         me._reconnectTimeout = setTimeout(me.connect.bind(me), me._backoffReconnect);
-        me._backoffReconnect = me._backoffReconnect * 2;
+        me._backoffReconnect = me._backoffReconnect * 1.1;
         if (me._backoffReconnect > me.maxReconnectMillis) {
             me._backoffReconnect = me.maxReconnectMillis;
         }
@@ -106,9 +107,10 @@ DurableConnection.prototype.connect = function connect() {
         }
         me._backoffReconnect = me.reconnectMillis;
         me.emit('connect');
+        me._reconnectTimes++ && me.emit('reconnect', me._reconnectTimes-1);
     });
     me.socket.on('data', function(buf) {
-        me.emit('connect', buf);
+        me.emit('data', buf);
     });
     me.socket.on('end', function() {
         me.emit('end');

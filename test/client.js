@@ -18,8 +18,17 @@ var op = 'add';
 var meter = new Meter(op, TIMES);
 meter.init();
 
-var client = new Coby.Client({port: PORT, host: HOST});
-client.connect().then(function () {
+var client = new Coby.Client({
+    port: PORT,
+    host: HOST,
+    reconnectMillis: 500,
+    maxReconnectMillis: 10000
+});
+client.on('reconnect', function (times) {
+    console.log(times);
+});
+client.connect().then(function (remote, connect) {
+    console.log(remote);
     for (var i = 0; i < TIMES; i++) {
         add(client.add, meter.metrics[i]);
     }

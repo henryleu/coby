@@ -1,6 +1,6 @@
 {
   "name": "coby",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "a simple node RPC library which is mainly designed for nodejs app to talk JSONs with high-performance.",
   "repository": "https://github.com/henryleu/coby",
   "license": "MIT",

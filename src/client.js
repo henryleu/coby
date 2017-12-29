@@ -2,6 +2,7 @@
  * Created by Henry Leu (henryleu@126.com) on 2017/11/3
  */
 const util = require('util');
+const events = require('events');
 const Coby = require('./coby');
 const lg = require('./logger');
 
@@ -9,7 +10,9 @@ const Client = function (options) {
     this._options = options || {};
     const logger = this._options.logger || lg;
     this.coby = new Coby({ logger });
+    this.coby.on('reconnect', (times) => this.emit('reconnect', times));
 }
+util.inherits(Client, events.EventEmitter);
 
 Client.prototype.connect = function (cb) {
     if (cb) {
@@ -22,10 +25,10 @@ Client.prototype.connect = function (cb) {
 Client.prototype._connect = function (cb) {
     const port = this._options.port;
     const host = this._options.host;
-    this.coby.connect(port, host, (remote) => {
+    this.coby.connect(port, host, this._options, (remote) => {
         this._remote = remote;
         this._init();
-        cb();
+        cb(remote);
     });
 }
 
