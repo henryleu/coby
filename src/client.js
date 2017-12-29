@@ -23,14 +23,14 @@ Client.prototype._connect = function (cb) {
     const port = this._options.port;
     const host = this._options.host;
     this.coby.connect(port, host, (remote) => {
-        this.remote = remote;
+        this._remote = remote;
         this._init();
         cb();
     });
 }
 
 Client.prototype._init = function () {
-    for (let key in this.remote) {
+    for (let key in this._remote) {
         const names = key.split('.');
         const methodName = names.pop();
         let ctx = this;
@@ -38,7 +38,7 @@ Client.prototype._init = function () {
             !ctx[name] && (ctx[name] = {});
             ctx = ctx[name];
         }
-        ctx[methodName] = util.promisify(this.remote[key]);
+        ctx[methodName] = util.promisify(this._remote[key]);
     }
 }
 

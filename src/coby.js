@@ -1,5 +1,6 @@
 const net = require('net');
 const idGenerator = require('./id');
+const DurableConnection = require('./reconnect');
 let logger = require('./logger');
 
 const descrCmd = '__D';
@@ -36,8 +37,12 @@ Coby.prototype.connect = function(port, host, callback){
 		host = 'localhost';
 	}
 
-	var connection = net.createConnection(port, host);
-	var self = this;
+    var connection = net.createConnection(port, host);
+    // var connection = new DurableConnection(port, host);
+    // connection.reconnectMillis = 7000;     // default: 1000
+    // connection.maxReconnectMillis = 60000; // default: Number.MAX_SAFE_INTEGER
+
+    var self = this;
 
 	connection.setKeepAlive(true);
 
